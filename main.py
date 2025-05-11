@@ -1,13 +1,15 @@
+# mainly add the TODO for auto log-in and the slide verification
 import sys, time, random, tempfile, logging, platform
 from typing import Final, List, Dict
 from selenium import webdriver
-from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.ie.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.common.action_chains import ActionChains
 
 
 def setup_logger(debug: bool = False):
@@ -29,6 +31,9 @@ def init_driver() -> webdriver.Chrome:
     chrome_options = Options()
 
     if system_platform == "Windows":
+        # Here I just use my path, you ca feel free to switch to yours.
+        # chromedriver_path = r"C:\ProgramFiles\chromedriver-win64\chromedriver.exe"
+        # chrome_binary_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
         chromedriver_path = "chrome/chromedriver-win64/chromedriver.exe"
         chrome_binary_path = "chrome/chrome-win64/chrome.exe"
         chrome_options.binary_location = chrome_binary_path
@@ -47,16 +52,71 @@ def init_driver() -> webdriver.Chrome:
     return driver
 
 
+def slide_verification(driver):
+    try:
+        # 等待 iframe 加载并切换到 iframe
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "tcaptcha_iframe"))
+        )
+        driver.switch_to.frame("tcaptcha_iframe")
+
+        # 等待滑块元素可见
+        slider = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located(
+                (By.XPATH, "//*[@id='tcaptcha_drag_thumb']")
+            )
+        )
+
+        # 创建动作链
+        action = ActionChains(driver)
+
+        # 点击并按住滑块
+        action.click_and_hold(slider).perform()
+
+        # 模拟滑动过程
+        total_distance = 222  # 滑动的总距离
+        current_position = 0
+        while current_position < total_distance:
+            move_distance = min(
+                total_distance - current_position, random.uniform(10, 30)
+            )
+            action.move_by_offset(xoffset=move_distance, yoffset=0).perform()
+            current_position += move_distance
+            time.sleep(random.uniform(0.02, 0.1))
+
+        # 释放滑块
+        action.release().perform()
+        print("滑动完成")
+    except Exception as e:
+        print("滑动验证码失败:", e)
+
+
 def create_session(
     driver: webdriver.Chrome,
-    website: str = "https://h.liepin.com/im/showmsgnewpage?tab=message",
+    website: str = "https://h.liepin.com/account/login",
     user: str = "18116195410",
     password: str = "6913016fdu",
 ) -> None:
     driver.maximize_window()
     driver.get(website)
+
     # TODO: 自动填入账号密码，滑动滑块验证码
-    time.sleep(30)
+    st = driver.find_element(
+        By.XPATH, "//*[@id='main-container']/div/div[3]/div/div/ul/li[2]"
+    )
+    st.click()
+    time.sleep(1)
+    st = driver.find_element(
+        By.XPATH, "//*[@id='main-container']/div/div[3]/div/div/div/div[1]/div[1]/input"
+    )
+    st.send_keys(user)
+    time.sleep(1)
+    st = driver.find_element(
+        By.XPATH, "//*[@id='main-container']/div/div[3]/div/div/div/div[1]/div[2]/input"
+    )
+    st.send_keys(password)
+    st.send_keys(Keys.ENTER)
+    slide_verification(driver)
 
 
 # TODO: 根据传入参数点击筛选
