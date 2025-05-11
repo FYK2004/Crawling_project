@@ -67,6 +67,7 @@ try:
             clickable_tr.click()
             print(f"已点击第 {index + 1} 个<tr>")
             # 处理新窗口/标签页（假设每次点击都打开新标签页）
+
             if len(driver.window_handles) > 1:
                 driver.switch_to.window(driver.window_handles[-1])
                 # 在此处添加对新页面的操作（例如截图、数据抓取等）
