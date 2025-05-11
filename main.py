@@ -1,4 +1,5 @@
 import sys, time, random, tempfile, logging, platform
+from typing import Final, List, Dict
 from selenium import webdriver
 from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
@@ -9,6 +10,20 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 
+def setup_logger(debug: bool = False):
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG if debug else logging.INFO)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG if debug else logging.INFO)
+
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+
+    logger.handlers = []
+    logger.addHandler(handler)
+
+
 def init_driver() -> webdriver.Chrome:
     system_platform = platform.system()
     chrome_options = Options()
@@ -17,18 +32,17 @@ def init_driver() -> webdriver.Chrome:
         chromedriver_path = "chrome/chromedriver-win64/chromedriver.exe"
         chrome_binary_path = "chrome/chrome-win64/chrome.exe"
         chrome_options.binary_location = chrome_binary_path
-        s = Service(chromedriver_path)
-        driver = webdriver.Chrome(service=s, options=chrome_options)
     elif system_platform == "Linux":
         chromedriver_path = "/home/resume/bin/chromedriver"
         chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")
-        s = Service(chromedriver_path)
-        driver = webdriver.Chrome(service=s, options=chrome_options)
     else:
         raise EnvironmentError("Unsupported platform")
+
+    s = Service(chromedriver_path)
+    driver = webdriver.Chrome(service=s, options=chrome_options)
 
     return driver
 
@@ -46,6 +60,7 @@ def create_session(
 
 
 def conduct_scrape(
+    driver: webdriver.Chrome,
     current_city: str,
     expect_city: str,
     year_of_working: str,
@@ -58,8 +73,6 @@ def conduct_scrape(
     sex: str,
     hopping_freq: str,
 ):
-    driver = init_driver()
-    create_session(driver)
 
     try:
         # 显式等待元素可点击
@@ -74,6 +87,7 @@ def conduct_scrape(
 
         wait.until(EC.url_to_be("https://h.liepin.com/search/getConditionItem"))
 
+        # 工作城市
         current_city_tag = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
                 (By.XPATH, f"//label[@class='tag-item' and text()='{current_city}']")
@@ -92,6 +106,7 @@ def conduct_scrape(
         )
         expect_city_tag.click()
 
+        # 工作经验
         year_of_working_tag = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
                 (
@@ -295,54 +310,19 @@ def conduct_scrape(
         pass
 
 
-# 爬取数据
-# elements = driver.find_elements(By.CLASS_NAME,"item-wrap")
-# for index,element in enumerate(elements):
-#     title = element.find_element(By.CLASS_NAME,"jsx-479584096 ")
-#     print(f"第{index+1}个条目的标题是：{title.text}")
-#     price = element.find_element(By.CLASS_NAME,"content-price")
-#     print(f"第{index+1}个条目的价格是：{price.text}")
-#     desc = element.find_element(By.CLASS_NAME, "desc-wrap-community")
-#     print(f"第{index + 1}个条目的标签是：{desc.text}")
-
-# #link_element = element.find_element(By.TAG_NAME,"a")
-# #href = link_element.get_attribute("href")
-# #print(f"第{index+1}个条目的跳转链接是：{href}")
-#
-#     link_element = element.find_element(By.XPATH,".//a")
-#     href = link_element.get_attribute("href")
-#     print(f"第{index+1}个条目的跳转链接是：{href}")
-
-
-# 模拟滑动翻页
-# driver.execute_script("return document.body.scrollHeight")
-# last_height = driver.execute_script("return document.body.scrollHeight")
-# while True:
-#     driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
-#     time.sleep(3)
-#     new_height = driver.execute_script("return document.body.scrollHeight")
-#     if new_height == last_height:
-#         print("翻页失败")
-#         break
-#     last_height = new_height
-
-# 处理点击验证 与 点击翻页
-# for i in range(100):
-#     body_text = driver.find_element(By.TAG_NAME,"body").text
-#     if'验证码校验' in body_text:
-#         input_element = driver.find_element(By.ID,"btnSubmit")
-#         time.sleep(1)
-#         actions = ActionChains(driver)
-#         actions.move_to_element(input_element).perform()
-#         time.sleep(random.uniform(0.5,1.5))
-#         actions.click().perform()
-#         time.sleep(random.uniform(3,6))
-#     driver.find_element(By.CLASS_NAME,"next-active").click()
-#     time.sleep(3)
-
-# print(driver.title)
-# driver.close()
-
 if __name__ == "__main__":
+    # Global variables
+    RESUME_LISTS: List[Dict] = []
+    RESUME_COUNT: int = 0
+    DEBUG: Final[bool] = True
+
+    # Initialization
+    setup_logger(DEBUG)
+    driver = init_driver()
+    create_session(driver)
+
+    # Scraper
     param_list = ["上海", "北京", "1-3年", "", "", "", "", "", "", "", ""]
-    conduct_scrape(*param_list)
+    conduct_scrape(driver, *param_list)
+
+    print(RESUME_LISTS)
