@@ -38,14 +38,26 @@ def create_session(
     website: str = "https://h.liepin.com/im/showmsgnewpage?tab=message",
     user: str = "18116195410",
     password: str = "6913016fdu",
-):
+) -> None:
     driver.maximize_window()
     driver.get(website)
     # TODO: 自动填入账号密码，滑动滑块验证码
-    time.sleep(50)
+    time.sleep(30)
 
 
-if __name__ == "__main__":
+def conduct_scrape(
+    current_city: str,
+    expect_city: str,
+    year_of_working: str,
+    edu_experience: str,
+    institutional_requirement: str,
+    current_industry: str,
+    current_title: str,
+    age: str,
+    liveness: str,
+    sex: str,
+    hopping_freq: str,
+):
     driver = init_driver()
     create_session(driver)
 
@@ -56,17 +68,40 @@ if __name__ == "__main__":
         people_link = wait.until(
             EC.element_to_be_clickable((By.XPATH, "//li[@data-bar='manager-search']/a"))
         )
+
         # 点击链接
         people_link.click()
 
         wait.until(EC.url_to_be("https://h.liepin.com/search/getConditionItem"))
 
-        shanghai_tag = WebDriverWait(driver, 10).until(
+        current_city_tag = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
-                (By.XPATH, "//label[@class='tag-item' and text()='上海']")
+                (By.XPATH, f"//label[@class='tag-item' and text()='{current_city}']")
             )
         )
-        shanghai_tag.click()
+        current_city_tag.click()
+
+        expect_city_tag = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (
+                    By.XPATH,
+                    f'//*[@id="main-container"]/div[1]/div/div[2]/div/div/div[1]/form/section/div/'
+                    f'div[1]/div[2]/div/div[1]/label[@class="tag-item" and text()="{expect_city}"]',
+                )
+            )
+        )
+        expect_city_tag.click()
+
+        year_of_working_tag = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (
+                    By.XPATH,
+                    f'//*[@id="main-container"]/div[1]/div/div[2]/div/div/div[1]/form/section/div/div[1]'
+                    f'/div[3]/div/div/div[1]label[@class="tag-item" and text()="{year_of_working}"]',
+                )
+            )
+        )
+        year_of_working_tag.click()
         try:
             # 使用通用定位策略（匹配所有包含 cid 标识的<tr>）
             all_trs = WebDriverWait(driver, 20).until(
@@ -307,3 +342,7 @@ if __name__ == "__main__":
 
 # print(driver.title)
 # driver.close()
+
+if __name__ == "__main__":
+    param_list = ["上海", "北京", "1-3年", "", "", "", "", "", "", "", ""]
+    conduct_scrape(*param_list)
