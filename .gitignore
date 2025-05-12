@@ -1,2 +1,3 @@
 chromedriver-linux64/
 __pycache__/
+config/chrome.json
