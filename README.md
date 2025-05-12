@@ -2,7 +2,7 @@
 
 ### 运行代码
 
-```python
+```bash
 python main.py
 ```
 
