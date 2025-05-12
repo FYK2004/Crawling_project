@@ -1,5 +1,5 @@
 # mainly add the TODO for auto log-in and the slide verification
-import sys, time, random, tempfile, logging, platform
+import sys, time, json, random, tempfile, logging, platform
 from typing import Final, List, Dict
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -10,6 +10,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.action_chains import ActionChains
+
+
+CONFIG_PATH: Final = "./config/chrome.json"
 
 
 def setup_logger(debug: bool = False):
@@ -26,29 +29,40 @@ def setup_logger(debug: bool = False):
     logger.addHandler(handler)
 
 
+def load_config():
+    with open(CONFIG_PATH, "r") as f:
+        return json.load(f)
+
+
 def init_driver() -> webdriver.Chrome:
-    system_platform = platform.system()
+    system_platform = platform.system().lower()
+    config = load_config()
+
+    if system_platform not in config:
+        raise EnvironmentError(f"Platform '{system_platform}' not found in config")
+
+    platform_config = config[system_platform]
+    chromedriver_path = platform_config.get("chromedriver_path")
+    chrome_binary_path = platform_config.get("chrome_binary_path")
+
+    if not chromedriver_path:
+        raise ValueError("chromedriver_path not specified for this platform in config")
+
     chrome_options = Options()
 
-    if system_platform == "Windows":
-        # Here I just use my path, you ca feel free to switch to yours.
-        # chromedriver_path = r"C:\ProgramFiles\chromedriver-win64\chromedriver.exe"
-        # chrome_binary_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-        chromedriver_path = "chrome/chromedriver-win64/chromedriver.exe"
-        chrome_binary_path = "chrome/chrome-win64/chrome.exe"
+    if system_platform == "windows":
+        if not chrome_binary_path:
+            raise ValueError("chrome_binary_path not specified for Windows in config")
         chrome_options.binary_location = chrome_binary_path
-    elif system_platform == "Linux":
-        chromedriver_path = "/home/resume/bin/chromedriver"
+
+    elif system_platform == "linux":
         chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")
-    else:
-        raise EnvironmentError("Unsupported platform")
 
-    s = Service(chromedriver_path)
-    driver = webdriver.Chrome(service=s, options=chrome_options)
-
+    service = Service(chromedriver_path)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     return driver
 
 
