@@ -1,4 +1,3 @@
-# mainly add the TODO for auto log-in and the slide verification
 import sys, time, json, random, tempfile, logging, platform
 from typing import Final, List, Dict
 from selenium import webdriver
