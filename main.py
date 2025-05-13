@@ -10,32 +10,15 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.action_chains import ActionChains
 
+from utils import setup_logger, load_config, extract_scraper_params, load_template_task
 
 CONFIG_PATH: Final = "./config/chrome.json"
-
-
-def setup_logger(debug: bool = False):
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG if debug else logging.INFO)
-
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG if debug else logging.INFO)
-
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-
-    logger.handlers = []
-    logger.addHandler(handler)
-
-
-def load_config():
-    with open(CONFIG_PATH, "r") as f:
-        return json.load(f)
+TEMPLATE_PATH: Final = "./template/task.json"
 
 
 def init_driver() -> webdriver.Chrome:
     system_platform = platform.system().lower()
-    config = load_config()
+    config = load_config(CONFIG_PATH)
 
     if system_platform not in config:
         raise EnvironmentError(f"Platform '{system_platform}' not found in config")
@@ -133,22 +116,48 @@ def create_session(
     time.sleep(15)
 
 
+# TODO: 检查爬虫参数的正确性
+def validate_params(data_dict: Dict) -> bool:
+    raise NotImplementedError()
+
+
 # TODO: 根据传入参数点击筛选
 def click_params(
     driver,
-    current_cities,
-    expect_cities,
-    years_of_working,
-    edu_experiences,
-    institutional_requirements,
-    current_industries,
-    current_titles,
-    age_low,
-    age_high,
-    liveness,
-    sex,
-    hopping_freq,
+    current_cities: List = [],
+    expect_cities: List = [],
+    years_of_working: List = [],
+    education: List = [],
+    edu_requirements: List = [],
+    current_industries: List = [],
+    current_positions: List = [],
+    age_low: List = [],
+    age_high: List = [],
+    liveness: List = [],
+    sex: List = [],
+    hopping_freq: List = [],
 ):
+    """
+    根据指定的筛选条件进行候选人筛选
+
+    参数说明：
+    - `current_cities`：候选人当前所在城市列表
+    - `expect_cities`：候选人期望工作城市列表
+    - `years_of_working`：工作年限范围列表
+    - `education`：教育学历列表
+    - `edu_requirements`：院校要求列表
+    - `current_industries`：候选人当前所在行业列表
+    - `current_positions`：候选人当前职位列表
+    - `age_low`：年龄下限
+    - `age_high`：年龄上限
+    - `liveness`：活跃度等级列表
+    - `sex`：性别列表
+    - `hopping_freq`：跳槽频率范围列表
+
+    注意：
+    - 所有传入参数应为列表形式
+    - TODO：记录每个筛选条件的所有可选项，用于后续判断参数是否错误。
+    """
     # 工作城市
     if current_cities[0] == "不限":
         current_city_tag = WebDriverWait(driver, 10).until(
@@ -245,7 +254,7 @@ def click_params(
     time.sleep(3)
 
     # 教育经历
-    if edu_experiences[0] == "不限":
+    if education[0] == "不限":
         edu_experience_tag = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
                 (
@@ -257,7 +266,7 @@ def click_params(
         )
         edu_experience_tag.click()
     else:
-        for ex in edu_experiences:
+        for ex in education:
             edu_experience_tag = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable(
                     (
@@ -272,7 +281,7 @@ def click_params(
     time.sleep(3)
 
     # 院校要求
-    if institutional_requirements[0] == "不限":
+    if edu_requirements[0] == "不限":
         institutional_requirement_tag = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
                 (
@@ -284,7 +293,7 @@ def click_params(
         )
         institutional_requirement_tag.click()
     else:
-        for re in institutional_requirements:
+        for re in edu_requirements:
             institutional_requirement_tag = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable(
                     (
@@ -346,10 +355,10 @@ def click_params(
     # )
     # sex_tag.click()
     # 跳槽频率
-    raise NotImplementedError()
 
 
-def single_scrape(driver: webdriver.Chrome, data_dict: dict):
+def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
+    """爬取单份简历"""
     # 使用显式等待确保元素加载
     WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.XPATH, "//body"))
@@ -413,7 +422,7 @@ def single_scrape(driver: webdriver.Chrome, data_dict: dict):
                 }
             }
             return texts;
-        """,
+            """,
             el,
         )
 
@@ -432,9 +441,9 @@ def single_scrape(driver: webdriver.Chrome, data_dict: dict):
     data_dict["job_intention"] = " | ".join(job_intention)
 
     # 教育经历（结构化数据）
-    data_dict["edu_experiences"] = []
+    data_dict["education"] = []
     for edu in driver.find_elements(By.CLASS_NAME, "edu-school-cont"):
-        data_dict["edu_experiences"].append(edu.text.replace("\n", " ").strip())
+        data_dict["education"].append(edu.text.replace("\n", " ").strip())
 
     # 资格证书
     data_dict["certificates"] = [
@@ -476,19 +485,16 @@ def conduct_scrape(
     current_cities: list = [],
     expect_cities: list = [],
     years_of_working: list = [],
-    edu_experiences: list = [],
-    institutional_requirements: list = [],
+    education: list = [],
+    edu_requirements: list = [],
     current_industries: list = [],
-    current_titles: list = [],
+    current_positions: list = [],
     age_low: list = [],
     age_high: list = [],
     liveness: list = [],
     sex: list = [],
     hopping_freq: list = [],
 ):
-    driver = init_driver()
-    create_session(driver)
-
     try:
         # 显式等待元素可点击
         wait = WebDriverWait(driver, 10)
@@ -507,17 +513,17 @@ def conduct_scrape(
             current_cities,
             expect_cities,
             years_of_working,
-            edu_experiences,
-            institutional_requirements,
+            education,
+            edu_requirements,
             current_industries,
-            current_titles,
+            current_positions,
             age_low,
             age_high,
             liveness,
             sex,
             hopping_freq,
         )
-        # --------------筛选结束-----------------------
+        # -----------------筛选结束-------------------
         time.sleep(3)
         try:
             # 使用通用定位策略（匹配所有包含 cid 标识的<tr>）
@@ -599,7 +605,7 @@ if __name__ == "__main__":
     # Global variables
     RESUME_LISTS: List[Dict] = []
     RESUME_COUNT: int = 0
-    DEBUG: Final[bool] = True
+    DEBUG: Final[bool] = len(sys.argv) == 1
 
     # Initialization
     setup_logger(DEBUG)
@@ -607,19 +613,15 @@ if __name__ == "__main__":
     create_session(driver)
 
     # Scraper
-    param_list = [
-        ["上海"],
-        ["北京"],
-        ["1-3年"],
-        [""],
-        [""],
-        [""],
-        [""],
-        [""],
-        [""],
-        [""],
-        [""],
-    ]
-    conduct_scrape(driver, *param_list)
+    if DEBUG:
+        param_dict = load_template_task(TEMPLATE_PATH)
+    else:
+        param_input = json.loads(sys.argv[1])
+        param_dict = extract_scraper_params(param_input)
+
+    # validate_params(**param_dict)
+
+    # Start scraping...
+    conduct_scrape(driver, **param_dict)
 
     print(RESUME_LISTS)
