@@ -10,7 +10,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.action_chains import ActionChains
 
-from utils import setup_logger, load_config, extract_scraper_params, load_template_task
+from utils import setup_logger, load_json
 
 CONFIG_PATH: Final = "./config/chrome.json"
 TEMPLATE_PATH: Final = "./template/task.json"
@@ -18,7 +18,7 @@ TEMPLATE_PATH: Final = "./template/task.json"
 
 def init_driver() -> webdriver.Chrome:
     system_platform = platform.system().lower()
-    config = load_config(CONFIG_PATH)
+    config = load_json(CONFIG_PATH)
 
     if system_platform not in config:
         raise EnvironmentError(f"Platform '{system_platform}' not found in config")
@@ -494,6 +494,7 @@ def conduct_scrape(
     liveness: list = [],
     sex: list = [],
     hopping_freq: list = [],
+    **kwargs: Dict
 ):
     try:
         # 显式等待元素可点击
@@ -614,10 +615,9 @@ if __name__ == "__main__":
 
     # Scraper
     if DEBUG:
-        param_dict = load_template_task(TEMPLATE_PATH)
+        param_dict = load_json(TEMPLATE_PATH)
     else:
-        param_input = json.loads(sys.argv[1])
-        param_dict = extract_scraper_params(param_input)
+        param_dict = json.loads(sys.argv[1])
 
     # validate_params(**param_dict)
 
