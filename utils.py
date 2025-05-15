@@ -19,7 +19,7 @@ def setup_logger(debug: bool = False) -> None:
 
 
 def load_json(path: str) -> dict:
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 

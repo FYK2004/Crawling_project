@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from utils import setup_logger, load_json, init_dirs
 from verification import (
@@ -327,10 +328,10 @@ def click_params(
     # 年龄
     age_low_tag = driver.find_element(By.XPATH, '//*[@id="ageLow"]')
     age_low_tag.clear()
-    age_low_tag.send_keys(age_low)
+    age_low_tag.send_keys(age_low[0])
     age_high_tag = driver.find_element(By.XPATH, '//*[@id="ageHigh"]')
     age_high_tag.clear()
-    age_high_tag.send_keys(age_high)
+    age_high_tag.send_keys(age_high[0])
     above_1 = driver.find_element(
         By.XPATH,
         '//*[@id="main-container"]/div[1]/div/div[2]/div/div/div[1]'
@@ -494,6 +495,76 @@ def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
         else ""
     )
 
+    # 工作经历
+    data_dict['work_experience'] = []
+    for work in driver.find_elements(By.CLASS_NAME, 'rd-info-tpl-item.rd-work-item-cont'):
+        work_head = work.find_element(By.CSS_SELECTOR, '.rd-info-tpl-item-head')
+        work_cont = work.find_element(By.CSS_SELECTOR, '.rd-info-tpl-item-cont')
+        tags = work_cont.find_elements(By.CSS_SELECTOR, '.tags-box > .tag')
+        work_data = {
+            'company': work_head.find_element(By.CSS_SELECTOR, 'h5.ellipsis').text.strip(),
+            'employment_period': work_head.find_element(By.CSS_SELECTOR, 'span.rd-work-time').text.strip(),
+            'all_tags': [tag.text.strip() for tag in tags],
+            'job_name': work_cont.find_element(By.CSS_SELECTOR, 'h6.job-name').text.strip(),
+        }
+        work_rows = work_cont.find_elements(By.CLASS_NAME, 'rd-info-row')
+        for work_row in work_rows:
+            work_cols = work_row.find_elements(By.CLASS_NAME, 'rd-info-col')
+            for work_col in work_cols:
+                try:
+                    key = work_col.find_element(By.CLASS_NAME, 'rd-info-col-title').text.strip('：')
+                    value = work_col.find_element(By.CLASS_NAME, 'rd-info-col-cont').text.strip().replace("\n"," ")
+                    work_data[key] = value
+                except:
+                    continue
+        data_dict['work_experience'].append(work_data)
+
+    # 项目经历
+    try:
+        elem = WebDriverWait(driver, 15).until(
+            lambda x: x.find_element(
+                By.XPATH,
+                "//span[contains(@class, 'rd-info-other-link') and contains(text(), '显示其他')]"
+            )
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elem)
+        time.sleep(0.5)  # 等待滚动惯性
+        driver.execute_script("arguments[0].click()", elem)
+    except (NoSuchElementException, TimeoutException):
+        logging.info("未找到展开按钮，已跳过")
+    except Exception as e:
+        logging.info(f"点击失败: {str(e)}")
+
+    try:
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((
+                By.CSS_SELECTOR,
+                '.rd-info-tpl-item.rd-project-item-cont'
+            ))
+        )
+    except TimeoutException:
+        logging.info("项目加载超时")
+
+    data_dict['project_experience'] = []
+    for project in driver.find_elements(By.CSS_SELECTOR, '.rd-info-tpl-item.rd-project-item-cont'):
+        project_head = project.find_element(By.CSS_SELECTOR, '.rd-info-tpl-item-head')
+        project_cont = project.find_element(By.CSS_SELECTOR, '.rd-info-tpl-item-cont')
+        project_data = {
+            'project_name': project_head.find_element(By.CSS_SELECTOR, 'h5.ellipsis').text.strip(),
+            'employment_period': project_head.find_element(By.CSS_SELECTOR, 'span.rd-project-time').text.strip(),
+        }
+        project_rows = project_cont.find_elements(By.CLASS_NAME, 'rd-info-row')
+        for project_row in project_rows:
+            project_cols = project_row.find_elements(By.CLASS_NAME, 'rd-info-col')
+            for project_col in project_cols:
+                try:
+                    key = project_col.find_element(By.CLASS_NAME, 'rd-info-col-title').text.strip('：')
+                    value = project_col.find_element(By.CLASS_NAME, 'rd-info-col-cont').text.strip().replace("\n"," ")
+                    project_data[key] = value
+                except:
+                    continue
+        data_dict['project_experience'].append(project_data)
+
 
 def conduct_scrape(
     driver: webdriver.Chrome,
@@ -538,7 +609,7 @@ def conduct_scrape(
                 )
             )
         except TimeoutException:
-            print("未找到符合条件的<tr>元素")
+            logging.info("未找到符合条件的<tr>元素")
             driver.quit()
             exit()
 
@@ -557,7 +628,7 @@ def conduct_scrape(
                     EC.element_to_be_clickable(tr)
                 )
                 clickable_tr.click()
-                print(f"已点击第 {index + 1} 个<tr>")
+                logging.info(f"已点击第 {index + 1} 个<tr>")
 
                 if len(driver.window_handles) > 1:
                     driver.switch_to.window(driver.window_handles[-1])
@@ -566,21 +637,21 @@ def conduct_scrape(
 
                     # 将完整字典加入列表
                     data_list.append(data_dict)
-                    print(f"第 {index + 1} 条数据已存储")
+                    logging.info(f"第 {index + 1} 条数据已存储")
 
                     # 关闭新标签页并切回主窗口
                     driver.close()
                     driver.switch_to.window(main_window)
 
                     # 每5条打印进度
-                    if (index + 1) % 3 == 0:
-                        print(f"\n=== 已处理 {index + 1} 条数据 ===")
-                        print(json.dumps(data_list[-3:], indent=2, ensure_ascii=False))
+                    if (index + 1) % 1 == 0:
+                        logging.info(f"\n=== 已处理 {index + 1} 条数据 ===")
+                        print(json.dumps(data_list[-1:], indent=2, ensure_ascii=False))
 
                         # 追加写入文件
                         with open("output.json", "a", encoding="utf-8") as f:
                             json.dump(
-                                {"batch": (index + 1) // 3, "data": data_list[-3:]},
+                                {"batch": (index + 1) // 1, "data": data_list[-1:]},
                                 f,
                                 ensure_ascii=False,
                             )
@@ -589,7 +660,7 @@ def conduct_scrape(
                 time.sleep(random_wait)
 
             except Exception as e:
-                print(f"第 {index + 1} 条数据处理失败: {str(e)}")
+                logging.info(f"第 {index + 1} 条数据处理失败: {str(e)}")
                 # 即使出错也保存已收集的数据
                 if data_dict:
                     data_list.append(data_dict)
