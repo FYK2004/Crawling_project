@@ -7,10 +7,17 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.ie.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.action_chains import ActionChains
 
-from utils import setup_logger, load_json
+from utils import setup_logger, load_json, init_dirs
+from verification import (
+    download_captcha,
+    calculate_dist,
+    slide_verification,
+    BG_IMAGE_PATH,
+    BK_IMAGE_PATH,
+)
+
 
 CONFIG_PATH: Final = "./config/chrome.json"
 TEMPLATE_PATH: Final = "./template/task.json"
@@ -43,48 +50,10 @@ def init_driver() -> webdriver.Chrome:
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")
 
-    service = Service(chromedriver_path)
+    service = Service(chromedriver_path, verbose=True)
     driver = webdriver.Chrome(service=service, options=chrome_options)
+    logging.info("Initialize the chrom driver successfully!")
     return driver
-
-
-def slide_verification(driver):
-    try:
-        # 等待 iframe 加载并切换到 iframe
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "tcaptcha_iframe"))
-        )
-        driver.switch_to.frame("tcaptcha_iframe")
-
-        # 等待滑块元素可见
-        slider = WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located(
-                (By.XPATH, "//*[@id='tcaptcha_drag_thumb']")
-            )
-        )
-
-        # 创建动作链
-        action = ActionChains(driver)
-
-        # 点击并按住滑块
-        action.click_and_hold(slider).perform()
-
-        # 模拟滑动过程
-        total_distance = 222  # 滑动的总距离
-        current_position = 0
-        while current_position < total_distance:
-            move_distance = min(
-                total_distance - current_position, random.uniform(10, 30)
-            )
-            action.move_by_offset(xoffset=move_distance, yoffset=0).perform()
-            current_position += move_distance
-            time.sleep(random.uniform(0.02, 0.1))
-
-        # 释放滑块
-        action.release().perform()
-        print("滑动完成")
-    except Exception as e:
-        print("滑动验证码失败:", e)
 
 
 def create_session(
@@ -93,27 +62,72 @@ def create_session(
     user: str = "18116195410",
     password: str = "6913016fdu",
 ) -> None:
+    logging.info("Start creating session...")
     driver.maximize_window()
     driver.get(website)
+    time.sleep(2)
 
-    # TODO: 自动填入账号密码，滑动滑块验证码
-    st = driver.find_element(
-        By.XPATH, "//*[@id='main-container']/div/div[3]/div/div/ul/li[2]"
+    # 自动填入账号密码，滑动滑块验证码
+    # Click the login page
+    WebDriverWait(driver, 1).until(
+        EC.presence_of_element_located(
+            (By.XPATH, "//*[@id='main-container']/div/div[3]/div/div/ul/li[2]")
+        )
+    ).click()
+
+    # Fill in the username
+    username_input = WebDriverWait(driver, 1).until(
+        EC.presence_of_element_located(
+            (
+                By.XPATH,
+                "//*[@id='main-container']/div/div[3]/div/div/div/div[1]/div[1]/input",
+            )
+        )
     )
-    st.click()
-    time.sleep(1)
-    st = driver.find_element(
-        By.XPATH, "//*[@id='main-container']/div/div[3]/div/div/div/div[1]/div[1]/input"
-    )
-    st.send_keys(user)
-    time.sleep(1)
-    st = driver.find_element(
+    username_input.send_keys(user)
+
+    # Fill in the password
+    password_input = driver.find_element(
         By.XPATH, "//*[@id='main-container']/div/div[3]/div/div/div/div[1]/div[2]/input"
     )
-    st.send_keys(password)
-    st.send_keys(Keys.ENTER)
-    # slide_verification(driver)
-    time.sleep(15)
+    password_input.send_keys(password)
+
+    # Submit the form
+    password_input.send_keys(Keys.ENTER)
+
+    time.sleep(2)
+    driver.save_screenshot("./image/1-login.png")
+    logging.info("Successfully fill the username and password...")
+
+    # 等待滑动验证码出现，自动计算滑动距离
+    try:
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "tcaptcha_iframe"))
+        )
+        driver.switch_to.frame("tcaptcha_iframe")
+        bg_elem, _ = download_captcha(driver)
+        right_position = calculate_dist(BG_IMAGE_PATH, bg_elem)
+        slide_verification(driver, right_position)
+    except:
+        raise ValueError()
+
+    try:
+        time.sleep(10)
+        # 显式等待元素可点击
+        wait = WebDriverWait(driver, 10)
+        # 通过XPath定位（推荐：结合父元素的data-bar属性）
+        # people_link = wait.until(EC.element_to_be_clickable(
+        #     (By.XPATH, '//*[@id="main-container"]/header/div[1]/div/ul/li[3]/a')
+        # ))
+        # 点击链接
+        # people_link.click()
+        driver.save_screenshot("./image/3-verify.png")
+        driver.get("https://h.liepin.com/search/getConditionItem")
+        wait.until(EC.url_to_be("https://h.liepin.com/search/getConditionItem"))
+    except:
+        driver.save_screenshot("./image/4-loginerr.png")
+        logging.error("登录失败！")
+        raise ValueError("登录失败！")
 
 
 # TODO: 检查爬虫参数的正确性
@@ -494,20 +508,9 @@ def conduct_scrape(
     liveness: list = [],
     sex: list = [],
     hopping_freq: list = [],
-    **kwargs: Dict
+    **kwargs: Dict,
 ):
     try:
-        # 显式等待元素可点击
-        wait = WebDriverWait(driver, 10)
-        # 通过XPath定位（推荐：结合父元素的data-bar属性）
-        # people_link = wait.until(EC.element_to_be_clickable(
-        #     (By.XPATH, '//*[@id="main-container"]/header/div[1]/div/ul/li[3]/a')
-        # ))
-        # 点击链接
-        # people_link.click()
-        driver.get("https://h.liepin.com/search/getConditionItem")
-        wait.until(EC.url_to_be("https://h.liepin.com/search/getConditionItem"))
-
         # -----------------筛选开始-------------------
         click_params(
             driver,
@@ -609,6 +612,7 @@ if __name__ == "__main__":
     DEBUG: Final[bool] = len(sys.argv) == 1
 
     # Initialization
+    init_dirs()
     setup_logger(DEBUG)
     driver = init_driver()
     create_session(driver)
