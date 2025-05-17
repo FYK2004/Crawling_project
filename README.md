@@ -1,8 +1,8 @@
 ## 简历匹配（爬虫模块）
 
 ### 输入输出
-- 输入格式参照 [resume.json](../agent/template/resume.json)
-- 输出格式参照 [task.json](../agent/template/task.json)
+- 输入格式参照 [resume.json](../agent/database/resume.json)
+- 输出格式参照 [task.json](../agent/database/task.json)
 
 
 ### 运行代码

@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import json
 import logging
 
@@ -26,3 +27,11 @@ def load_json(path: str) -> dict:
 def init_dirs() -> None:
     os.makedirs("tmp", exist_ok=True)
     os.makedirs("image", exist_ok=True)
+
+
+def format_elapsed_time(start_time: float):
+    end_time = time.time()
+    elapsed_seconds = int(end_time - start_time)
+    minutes = elapsed_seconds // 60
+    seconds = elapsed_seconds % 60
+    return f"{minutes:>2}m {seconds:02d}s"

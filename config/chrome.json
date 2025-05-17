@@ -1,9 +1,0 @@
-{
-  "windows": {
-    "chromedriver_path": "chrome/chromedriver-win64/chromedriver.exe",
-    "chrome_binary_path": "chrome/chrome-win64/chrome.exe"
-  },
-  "linux": {
-    "chromedriver_path": "/home/resume/bin/chromedriver"
-  }
-}
