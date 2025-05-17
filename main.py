@@ -1,6 +1,5 @@
 import sys, time, json, random, tempfile, logging, platform
 from typing import Final, List, Dict
-from tqdm import tqdm
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -670,7 +669,9 @@ def conduct_scrape(
                     if not DEBUG:
                         print(json.dumps(data_dict, indent=2, ensure_ascii=False))
                     else:
-                        logging.info(f"已成功爬取简历 {data_dict['index_of_people']}，耗时 {format_elapsed_time(start_time)}")
+                        logging.info(
+                            f"已成功爬取简历 {data_dict['index_of_people']:>30}，耗时 {format_elapsed_time(start_time)}"
+                        )
 
                     # 追加写入文件
                     with open("output.json", "a", encoding="utf-8") as f:
@@ -697,7 +698,8 @@ def conduct_scrape(
                 time.sleep(5)
     finally:
         # 保持浏览器打开（根据需求决定是否关闭）
-        # driver.quit()
+        if DEBUG:
+            driver.quit()
         pass
 
 
