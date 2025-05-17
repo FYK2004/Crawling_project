@@ -59,22 +59,45 @@ def calculate_dist(bg_with_gap_path: str, bg_elem: WebElement):
     img_with_rectangles = bg_img.copy()
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        cv2.rectangle(img_with_rectangles, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        if x > 350 and w > 50 and h > 50:
+            cv2.rectangle(img_with_rectangles, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            # Prepare text
+            label = f"({x}, {y}, {w}, {h})"
+
+            # Draw text at top-left corner
+            cv2.putText(
+                img_with_rectangles,
+                label,
+                (x, y - 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 0, 255),
+                1,
+                cv2.LINE_AA,
+            )
     cv2.imwrite("image/rectangles.png", img_with_rectangles)
 
     # 判断是否为符合条件的轮廓
     target_contour = None
+    subtar_contour = None
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if abs(w - h) < 10 and w > 80 and h > 80:
+        # logging.info(f"Find countour ==> x={x}, y={y}, w={w}, h={h}")
+        if abs(w - h) < 20 and w > 80 and h > 80 and x > 450:
             logging.info(f"Target countour ==> x={x}, y={y}, w={w}, h={h}")
             target_contour = (x, y, w, h)
             break
+        elif w > 85 and h > 85 and x > 450:
+            logging.info(f"Subtar countour ==> x={x}, y={y}, w={w}, h={h}")
+            subtar_contour = (x, y, w, h)
 
     # TODO: 没找到就刷新验证码
     if target_contour is None:
-        logging.error("未能找到符合条件的缺块轮廓")
-        return -1
+        if subtar_contour is None:
+            logging.error("未能找到符合条件的缺块轮廓")
+            return random.uniform(220, 250)
+        else:
+            target_contour = subtar_contour
 
     dx = target_contour[0]
 
