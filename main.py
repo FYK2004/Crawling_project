@@ -1,4 +1,5 @@
 import sys, time, json, random, tempfile, logging, platform
+from operator import index
 from typing import Final, List, Dict
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -351,26 +352,61 @@ def click_params(
     time.sleep(3)
 
     # 活跃度
+    liveness_button=driver.find_element(By.XPATH,'//*[@id="main-container"]/div[1]/div/div[2]/div/div/div[1]'
+                                                 '/form/section/div/div[1]/div[4]/div[2]/div/div')
+    liveness_button.click()
+    time.sleep(3)
+    # if liveness[0]=="不限":
+    #     index_of_liveness=0
+    # elif liveness[0]=="今天活跃":
+    #     index_of_liveness=1
+    # elif liveness[0]=="3天内活跃":
+    #     index_of_liveness=2
+    # elif liveness[0]=="7天内活跃":
+    #     index_of_liveness=3
+    # elif liveness[0]=="30天内活跃":
+    #     index_of_liveness=4
+    # elif liveness[0]=="最近三个月活跃":
+    #     index_of_liveness=5
+    # elif liveness[0]=="最近半年活跃":
+    #     index_of_liveness=6
+    # elif liveness[0]=="最近一年活跃":
+    #     index_of_liveness=7
+    liveness_tag=driver.find_element(By.XPATH,f'//div[contains(@class, "ant-select-item-option") and text()="{liveness[0]}"]')
+    liveness_tag.click()
+    time.sleep(3)
     # 性别
-    # sex_button=driver.find_element(By.XPATH,'//*[@id="main-container"]/div[1]/div/div[2]/div/div/div[1]'
-    #                                         '/form/section/div/div[1]/div[4]/div[3]/div/div/div')
-    # sex_button.click()
+    sex_button=driver.find_element(By.XPATH,'//*[@id="main-container"]/div[1]/div/div[2]/div/div/div[1]'
+                                            '/form/section/div/div[1]/div[4]/div[3]/div/div')
+    sex_button.click()
+    time.sleep(3)
     # if sex[0]=="不限":
-    #     index_of_sex=1
+    #     index_of_sex = 0
     # elif sex[0]=="男":
+    #     index_of_sex = 1
+    # elif sex[0]=="女":
     #     index_of_sex = 2
-    # else:
-    #     index_of_sex = 3
-    # sex_tag=WebDriverWait(driver,10).until(
-    #     EC.element_to_be_clickable(
-    #         (
-    #         By.XPATH,
-    #         f'/html/body/div[11]/div/div/div/div[2]/div/div/div[{index_of_sex}]'
-    #         )
-    #     )
-    # )
-    # sex_tag.click()
+    # sex_tags=driver.find_elements(By.CLASS_NAME,"ant-select-item-option-content")
+    # sex_tags[index_of_sex].click()
+    sex_tag=driver.find_element(By.XPATH,f'//div[contains(@class, "ant-select-item-option") and text()="{sex[0]}"]')
+    sex_tag.click()
+    time.sleep(3)
+
     # 跳槽频率
+    hop_button = driver.find_element(By.XPATH, '//*[@id="main-container"]/div[1]/div/div[2]/div/div/div[1]'
+                                               '/form/section/div/div[1]/div[4]/div[4]/div/div')
+    hop_button.click()
+    time.sleep(3)
+    # if hopping_freq[0] == "不限":
+    #     index_of_hop = 0
+    # elif hopping_freq[0] == "近5年不超过3段":
+    #     index_of_hop = 1
+    # elif hopping_freq[0] == "近3年不超过2段":
+    #     index_of_hop = 2
+    # elif hopping_freq[0] == "近2段均不低于2年":
+    #     index_of_hop = 3
+    hop_tag = driver.find_element(By.XPATH,f'//div[contains(@class, "ant-select-item-option") and text()="{hopping_freq[0]}"]')
+    hop_tag.click()
 
 
 def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
@@ -528,14 +564,21 @@ def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
                         .text.strip()
                         .replace("\n", " ")
                     )
-                    work_data[key] = value
+                    if key=="薪　　资":
+                        work_data["salary"] = value
+                    elif key=="职位类别":
+                        work_data["position_category"] = value
+                    elif key=="职责业绩":
+                        work_data["responsibilities"] = value
+                    elif key=="所在部门":
+                        work_data["department"] = value
                 except:
                     continue
         data_dict["work_experience"].append(work_data)
 
     # 项目经历
     try:
-        elem = WebDriverWait(driver, 15).until(
+        elem = WebDriverWait(driver, 5).until(
             lambda x: x.find_element(
                 By.XPATH,
                 "//span[contains(@class, 'rd-info-other-link') and contains(text(), '显示其他')]",
@@ -550,7 +593,7 @@ def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
         logging.info(f"点击失败: {str(e)}")
 
     try:
-        WebDriverWait(driver, 10).until(
+        WebDriverWait(driver, 5).until(
             EC.presence_of_all_elements_located(
                 (By.CSS_SELECTOR, ".rd-info-tpl-item.rd-project-item-cont")
             )
@@ -585,7 +628,16 @@ def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
                         .text.strip()
                         .replace("\n", " ")
                     )
-                    project_data[key] = value
+                    if key=="项目职务":
+                        project_data["project_role"] = value
+                    elif key=="所在公司":
+                        project_data["company"] = value
+                    elif key=="项目描述":
+                        project_data["project_description"] = value
+                    elif key=="项目职责":
+                        project_data["responsibilities"] = value
+                    elif key=="项目业绩":
+                        project_data["project_achievement"] = value
                 except:
                     continue
         data_dict["project_experience"].append(project_data)
@@ -609,6 +661,7 @@ def conduct_scrape(
 ):
     try:
         # -----------------筛选开始-------------------
+        logging.info("开始条件筛选")
         click_params(
             driver,
             current_cities,
@@ -624,6 +677,7 @@ def conduct_scrape(
             sex,
             hopping_freq,
         )
+        logging.info("条件筛选已完成")
         # -----------------筛选结束-------------------
         time.sleep(3)
         try:
@@ -645,7 +699,7 @@ def conduct_scrape(
             # 每个<tr>初始化一个独立字典
             data_dict = {}
             try:
-                random_wait = random.uniform(8, 10)
+                random_wait = random.uniform(2, 4)
                 main_window = driver.current_window_handle
 
                 # 显式等待并点击<tr>

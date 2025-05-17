@@ -30,13 +30,13 @@
     "age_high": [35
 
     ],
-    "liveness": [
+    "liveness": ["最近三个月活跃"
 
     ],
-    "sex": [
+    "sex": ["男"
 
     ],
-    "hopping_freq": [
+    "hopping_freq": ["近2段均不低于2年"
 
     ],
     "task_id": "0ddc9587-ff8f-4972-a13f-0fb6864b12cd",
