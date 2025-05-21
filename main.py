@@ -135,6 +135,20 @@ def create_session(
 
 # TODO: 检查爬虫参数的正确性
 def validate_params(data_dict: Dict) -> bool:
+    # 参数说明：
+    # - `current_cities`：候选人当前所在城市列表
+    # - `expect_cities`：候选人期望工作城市列表
+    # - `years_of_working`：工作年限范围列表
+    # - `education`：教育学历列表
+    # - `edu_requirements`：院校要求列表
+    # - `current_industries`：候选人当前所在行业列表
+    # - `current_positions`：候选人当前职位列表
+    # - `age_low`：年龄下限
+    # - `age_high`：年龄上限
+    # - `liveness`：活跃度等级列表
+    # - `sex`：性别列表
+    # - `hopping_freq`：跳槽频率范围列表
+
     raise NotImplementedError()
 
 
@@ -188,13 +202,37 @@ def click_params(
         )
         current_city_tag.click()
     else:
+        # other_cities_tag = WebDriverWait(driver, 10).until(
+        #         EC.element_to_be_clickable(
+        #             (By.XPATH, f"//span[@class='btn-choose' and text()='{'其他'}']")
+        #         )
+        #     )
+        # other_cities_tag.click()
         for city in current_cities:
+            # cities_input = WebDriverWait(driver, 10).until(
+            #     EC.presence_of_element_located(
+            #         (
+            #             By.XPATH, "//input[@class='ant-input' and @placeholder='搜索城市']"
+            #         )
+            #     )
+            # )
+            # cities_input.send_keys(city)
+            # cities_input.click()
+            # input=WebDriverWait(driver, 10).until(
+            #     EC.element_to_be_clickable(
+            #         (
+            #             By.XPATH, '//*[@id="rcDialogTitle4"]/div/div'
+            #         )
+            #     )
+            # )
+            # input.click()
             current_city_tag = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable(
                     (By.XPATH, f"//label[@class='tag-item' and text()='{city}']")
                 )
             )
             current_city_tag.click()
+            time.sleep(2)
     time.sleep(3)
 
     # 期望城市
@@ -221,6 +259,7 @@ def click_params(
                 )
             )
             expect_city_tag.click()
+            time.sleep(2)
     time.sleep(3)
 
     # 工作经验
@@ -268,6 +307,7 @@ def click_params(
             )
         )
         year_of_working_tag.click()
+        time.sleep(2)
     time.sleep(3)
 
     # 教育经历
@@ -295,6 +335,7 @@ def click_params(
                 )
             )
             edu_experience_tag.click()
+            time.sleep(2)
     time.sleep(3)
 
     # 院校要求
@@ -322,6 +363,7 @@ def click_params(
                 )
             )
             institutional_requirement_tag.click()
+            time.sleep(2)
     time.sleep(3)
 
     # 当前行业
@@ -356,38 +398,15 @@ def click_params(
                                                  '/form/section/div/div[1]/div[4]/div[2]/div/div')
     liveness_button.click()
     time.sleep(3)
-    # if liveness[0]=="不限":
-    #     index_of_liveness=0
-    # elif liveness[0]=="今天活跃":
-    #     index_of_liveness=1
-    # elif liveness[0]=="3天内活跃":
-    #     index_of_liveness=2
-    # elif liveness[0]=="7天内活跃":
-    #     index_of_liveness=3
-    # elif liveness[0]=="30天内活跃":
-    #     index_of_liveness=4
-    # elif liveness[0]=="最近三个月活跃":
-    #     index_of_liveness=5
-    # elif liveness[0]=="最近半年活跃":
-    #     index_of_liveness=6
-    # elif liveness[0]=="最近一年活跃":
-    #     index_of_liveness=7
     liveness_tag=driver.find_element(By.XPATH,f'//div[contains(@class, "ant-select-item-option") and text()="{liveness[0]}"]')
     liveness_tag.click()
     time.sleep(3)
+
     # 性别
     sex_button=driver.find_element(By.XPATH,'//*[@id="main-container"]/div[1]/div/div[2]/div/div/div[1]'
                                             '/form/section/div/div[1]/div[4]/div[3]/div/div')
     sex_button.click()
     time.sleep(3)
-    # if sex[0]=="不限":
-    #     index_of_sex = 0
-    # elif sex[0]=="男":
-    #     index_of_sex = 1
-    # elif sex[0]=="女":
-    #     index_of_sex = 2
-    # sex_tags=driver.find_elements(By.CLASS_NAME,"ant-select-item-option-content")
-    # sex_tags[index_of_sex].click()
     sex_tag=driver.find_element(By.XPATH,f'//div[contains(@class, "ant-select-item-option") and text()="{sex[0]}"]')
     sex_tag.click()
     time.sleep(3)
@@ -397,14 +416,6 @@ def click_params(
                                                '/form/section/div/div[1]/div[4]/div[4]/div/div')
     hop_button.click()
     time.sleep(3)
-    # if hopping_freq[0] == "不限":
-    #     index_of_hop = 0
-    # elif hopping_freq[0] == "近5年不超过3段":
-    #     index_of_hop = 1
-    # elif hopping_freq[0] == "近3年不超过2段":
-    #     index_of_hop = 2
-    # elif hopping_freq[0] == "近2段均不低于2年":
-    #     index_of_hop = 3
     hop_tag = driver.find_element(By.XPATH,f'//div[contains(@class, "ant-select-item-option") and text()="{hopping_freq[0]}"]')
     hop_tag.click()
 
@@ -419,7 +430,7 @@ def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
     # 提取数据字段（带异常处理和默认值）
     # 简历编号
     driver.implicitly_wait(5)
-    data_dict["index_of_people"] = (
+    data_dict["resume_id"] = (
         driver.find_element(
             By.XPATH,
             "/html/body/div[1]/div[1]/div/div/div/div/section[1]/div[1]/div/div[1]/div[3]/div/span[1]",
@@ -432,7 +443,7 @@ def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
     )
 
     # 最后登陆时间
-    data_dict["last_login_time"] = (
+    data_dict["last_login"] = (
         driver.find_element(
             By.XPATH,
             '//*[@id="resume-detail-single"]/div[1]/div/div[1]/div[3]/div/span[2]',
@@ -482,7 +493,7 @@ def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
         personal_message.append(
             " ".join([text.replace('"', "") for text in text_nodes])
         )
-    data_dict["personal_message"] = " ".join(personal_message)
+    data_dict["information"] = " ".join(personal_message)
 
     # 求职意向
     job_intention = []
@@ -490,7 +501,7 @@ def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
         xpath = f'//*[@id="resume-detail-job-exp-info"]/div[1]/div[1]/span[{i}]'
         if driver.find_elements(By.XPATH, xpath):
             job_intention.append(driver.find_element(By.XPATH, xpath).text.strip())
-    data_dict["job_intention"] = " | ".join(job_intention)
+    data_dict["expectation"] = " | ".join(job_intention)
 
     # 教育经历（结构化数据）
     data_dict["education"] = []
@@ -692,7 +703,11 @@ def conduct_scrape(
             driver.quit()
             exit()
 
-        data_list = []
+        # random.shuffle(all_trs)
+
+        data_list = ["resume_id","last_login","name","status","information","phone",
+                     "email","expectation","education","certificate","language","skills","self_assessment",
+                     "work_experience","project_experience","created_at"]
 
         start_time = time.time()
         for index, tr in enumerate(all_trs):
@@ -724,7 +739,7 @@ def conduct_scrape(
                         print(json.dumps(data_dict, indent=2, ensure_ascii=False))
                     else:
                         logging.info(
-                            f"已成功爬取简历 {data_dict['index_of_people']:>30}，耗时 {format_elapsed_time(start_time)}"
+                            f"已成功爬取简历 {data_dict['resume_id']:>30}，耗时 {format_elapsed_time(start_time)}"
                         )
 
                     # 追加写入文件
