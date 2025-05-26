@@ -1,0 +1,6 @@
+chromedriver-linux64/
+__pycache__/
+config/chrome.json
+tmp/
+image/
+output.json
