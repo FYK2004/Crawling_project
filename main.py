@@ -155,6 +155,7 @@ def validate_params(data_dict: Dict) -> bool:
 # TODO: 根据传入参数点击筛选
 def click_params(
     driver,
+    search_text: List = [],
     current_cities: List = [],
     expect_cities: List = [],
     years_of_working: List = [],
@@ -189,6 +190,45 @@ def click_params(
     - 所有传入参数应为列表形式
     - TODO：记录每个筛选条件的所有可选项，用于后续判断参数是否错误。
     """
+    #关键词搜索
+
+    dropdown = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.CSS_SELECTOR, "div.switch-keyword-type.ant-select"))
+    )
+    # 2. 点击展开下拉框
+    dropdown.click()
+    # 3. 等待选项出现并选择"包含任意关键词"
+    WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.XPATH, "//div[contains(@class, 'ant-select-item')]"))
+    )
+    # 根据文本内容选择指定项
+    option = driver.find_element(By.XPATH, "//div[contains(@class, 'ant-select-item') and contains(., '包含任意关键词')]")
+    option.click()
+
+
+    # 等待搜索区域可见并确保可交互
+    search_area = WebDriverWait(driver, 15).until(
+        EC.visibility_of_element_located((By.XPATH, '//*[@id="main-container"]/div/div/div[2]/div/div/div[1]/div/div[1]/div/div[2]/div'))
+    )
+    # 确保搜索区域处于可操作状态
+    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", search_area)
+    ActionChains(driver).move_to_element(search_area).click().perform()
+
+    # 精确等待输入框准备就绪（解决元素状态变化问题）
+    search_input = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, '//*[@id="rc_select_1"]'))
+    )
+
+    search_input.clear()  # 清除可能存在的预填内容
+    search_input.send_keys(search_text)  # 输入搜索内容
+
+    ActionChains(driver).send_keys(Keys.ENTER).perform()
+
+    # 新增等待旧结果消失
+    WebDriverWait(driver, 10).until(
+        EC.invisibility_of_element_located((By.CSS_SELECTOR, ".search-results[data-cached='true']"))
+    )
+
     # 工作城市
     if current_cities[0] == "不限":
         current_city_tag = WebDriverWait(driver, 10).until(
@@ -656,6 +696,7 @@ def single_scrape(driver: webdriver.Chrome, data_dict: Dict):
 
 def conduct_scrape(
     driver: webdriver.Chrome,
+    search_text: list = [],
     current_cities: list = [],
     expect_cities: list = [],
     years_of_working: list = [],
@@ -675,6 +716,7 @@ def conduct_scrape(
         logging.info("开始条件筛选")
         click_params(
             driver,
+            search_text,
             current_cities,
             expect_cities,
             years_of_working,
